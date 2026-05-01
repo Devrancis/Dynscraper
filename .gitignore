@@ -1,0 +1,21 @@
+#backend
+backend/__pycache__/
+backend/data/
+
+# Environments
+venv/
+backend/venv/
+**/venv/
+
+# Python Caches
+__pycache__/
+**/__pycache__/
+*.pyc
+
+# Next.js
+frontend/node_modules/
+frontend/.next/
+
+# Security (CRITICAL)
+.env
+*.env
