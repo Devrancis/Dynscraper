@@ -1,6 +1,6 @@
-# threat-intel-dashboard
+# Dynamic Web Scraper
 
-Pulls threat advisories from public sources, extracts intelligence, stores it in Postgres, and surfaces everything through a REST API and a React dashboard. Saves you from manually checking threat feeds every morning.
+Pulls structured data from target websites, extracts key information using a lightweight Python engine, stores it in Postgres, and surfaces everything through a REST API and a Next.js React dashboard. Saves you from manually checking your target sites for updates every morning.
 
 ## What it does
 
