@@ -2,8 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core_scraper import run_stealth_scraper
 from database import init_db, save_to_neon, get_latest_intel
+from contextlib import asynccontextmanager
 
-app = FastAPI(title="Dynamic Web Scraper API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[*] Verifying PostgreSQL database connection...")
+    init_db()
+    yield 
+
+app = FastAPI(title="Dynamic Web Scraper API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
