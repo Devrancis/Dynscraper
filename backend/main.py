@@ -1,40 +1,47 @@
-import requests
-from bs4 import BeautifulSoup
-from datetime import datetime
-import asyncio
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from core_scraper import run_stealth_scraper
+from database import init_db, save_to_neon, get_latest_intel
 
-async def run_stealth_scraper(target_url: str):
-    print(f"\n[*] Lightweight scrape initiated on {target_url}...")
+app = FastAPI(title="Dynamic Web Scraper API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], 
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# This creates your Postgres table automatically when the server starts
+@app.on_event("startup")
+def on_startup():
+    print("[*] Verifying PostgreSQL database connection...")
+    init_db()
+
+@app.get("/")
+def read_root():
+    return {"status": "Lightweight API is online and ready."}
+
+@app.get("/api/scrape")
+async def manual_scrape(url: str = "https://thehackernews.com/"):
+    """Triggers the scraper and saves new data to the database."""
+    data = await run_stealth_scraper(url)
     
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    if not data:
+        return {"status": "error", "message": "Scrape failed. Check terminal logs."}
+    
+    # Save to Postgres (and get the count of newly inserted rows)
+    inserted_count = save_to_neon(data)
+        
+    return {
+        "status": "success",
+        "total_scraped": len(data["threat_intel"]),
+        "new_threats_added_to_db": inserted_count,
+        "data": data
     }
-    
-    try:
-        # Run synchronous requests inside an async thread so it doesn't block FastAPI
-        response = await asyncio.to_thread(requests.get, target_url, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, 'html.parser')
-        intel_data = []
-        
-        articles = soup.find_all('div', class_='body-post')
-        
-        for article in articles[:15]: 
-            title_elem = article.find('h2', class_='home-title')
-            link_elem = article.find('a', class_='story-link')
-            
-            if title_elem and link_elem:
-                intel_data.append({
-                    "scan_target": target_url,
-                    "indicator": title_elem.text.strip(),
-                    "reference_url": link_elem['href'],
-                    "scraped_at": datetime.utcnow().isoformat()
-                })
-                
-        print(f"[+] Successfully extracted {len(intel_data)} indicators using bs4.")
-        return intel_data
-        
-    except Exception as e:
-        print(f"[!] Scraper failed: {str(e)}")
-        return []
+
+@app.get("/api/intel")
+def fetch_database_intel():
+    """Endpoint for your Next.js dashboard to fetch the saved data."""
+    return get_latest_intel()

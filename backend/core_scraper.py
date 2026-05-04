@@ -2,21 +2,18 @@ import asyncio
 import csv
 import os
 import random
+import requests
+from bs4 import BeautifulSoup
 from datetime import datetime
-from playwright.async_api import async_playwright
-from playwright_stealth import Stealth 
-
 from user_agents import USER_AGENTS
 
 os.makedirs("data", exist_ok=True)
 
-# --- 1. THE DATA PROCESSOR (CSV Export) ---
 def save_intel_csv(data, source_name):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"data/intel_{source_name}_{timestamp}.csv"
     
-    if not data["threat_intel"]:
-        print("[!] No data extracted. Aborting file creation.")
+    if not data or not data.get("threat_intel"):
         return
 
     headers = ["scan_target", "timestamp", "indicator", "reference_url"]
@@ -33,66 +30,51 @@ def save_intel_csv(data, source_name):
                 "reference_url": item["reference_url"]
             })
             
-    print(f"[+] Payload compiled and saved to {filename}")
+    print(f"[+] CSV Backup compiled and saved to {filename}")
 
-# --- 2. THE CORE ENGINE ---
-async def run_stealth_scraper(url):
-    print(f"[*] Initializing secure connection to: {url}")
+async def run_stealth_scraper(url: str):
+    print(f"[*] Initializing lightweight connection to: {url}")
     
-    # Select a random identity for this session
     current_ua = random.choice(USER_AGENTS)
     print(f"[*] Masking identity as: {current_ua[:50]}...")
     
-    async with Stealth().use_async(async_playwright()) as p:
+    headers = {
+        "User-Agent": current_ua,
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+        "Referer": "https://google.com/",
+        "DNT": "1",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1"
+    }
+    
+    try:
+        response = await asyncio.to_thread(requests.get, url, headers=headers, timeout=10)
+        response.raise_for_status()
         
-        browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(
-            user_agent=current_ua, # Injecting the rotated UA here
-            viewport={"width": 1920, "height": 1080}
-        )
+        soup = BeautifulSoup(response.text, 'html.parser')
         
-        page = await context.new_page()
-        
-        try:
-            print("[*] Bypassing proxies and navigating...")
-            await page.goto(url, wait_until="networkidle")
-            
-            print("[*] Executing DOM extraction on target...")
-            intel_nodes = await page.locator("a.story-link").all()
-            
-            extracted_data = {
-                "scan_target": url,
-                "timestamp": datetime.now().isoformat(),
-                "threat_intel": []
-            }
+        extracted_data = {
+            "scan_target": url,
+            "timestamp": datetime.now().isoformat(),
+            "threat_intel": []
+        }
 
-            for node in intel_nodes:
-                title_element = node.locator("h2.home-title")
-                
-                if await title_element.count() > 0:
-                    title = await title_element.inner_text()
-                    link = await node.get_attribute("href")
-                    
-                    extracted_data["threat_intel"].append({
-                        "indicator": title.strip(),
-                        "reference_url": link
-                    })
-            
-            print(f"[+] Extracted {len(extracted_data['threat_intel'])} data points.")
-            
-            # CHANGED: Return the dictionary directly to main.py
-            return extracted_data
-
-        except Exception as e:
-            print(f"[!] Transmission Intercepted: {e}")
-            
-            # CHANGED: Return None so main.py knows the scrape failed
-            return None
+        intel_nodes = soup.find_all('a', class_='story-link')
         
-        finally:
-            print("[*] Wiping context and closing browser.")
-            await browser.close()
+        for node in intel_nodes:
+            title_element = node.find('h2', class_='home-title')
+            if title_element:
+                extracted_data["threat_intel"].append({
+                    "indicator": title_element.text.strip(),
+                    "reference_url": node.get('href')
+                })
+        
+        print(f"[+] Extracted {len(extracted_data['threat_intel'])} data points.")
+        save_intel_csv(extracted_data, "hackernews")
+        
+        return extracted_data
 
-if __name__ == "__main__":
-    target_url = "https://thehackernews.com/" 
-    asyncio.run(run_stealth_scraper(target_url))
+    except Exception as e:
+        print(f"[!] Transmission Intercepted: {e}")
+        return None
