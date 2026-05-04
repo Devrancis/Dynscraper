@@ -60,18 +60,37 @@ async def run_stealth_scraper(url: str):
             "threat_intel": []
         }
 
-        intel_nodes = soup.find_all('a', class_='story-link')
+        # Find ALL links on the dynamic page
+        intel_nodes = soup.find_all('a')
         
         for node in intel_nodes:
+            # First, check if it's the HackerNews specific structure
             title_element = node.find('h2', class_='home-title')
-            if title_element:
-                extracted_data["threat_intel"].append({
-                    "indicator": title_element.text.strip(),
-                    "reference_url": node.get('href')
-                })
+            
+            # GENERIC FALLBACK: If not HackerNews, look for any heading inside a link
+            if not title_element:
+                title_element = node.find(['h1', 'h2', 'h3'])
+            
+            if title_element and node.get('href'):
+                title_text = title_element.text.strip()
+                link = node.get('href')
+                
+                # Fix relative URLs (e.g., /article/123 -> https://site.com/article/123)
+                if link.startswith('/'):
+                    from urllib.parse import urlparse
+                    parsed_uri = urlparse(url)
+                    base_url = f"{parsed_uri.scheme}://{parsed_uri.netloc}"
+                    link = base_url + link
+                
+                # Only save it if the title is actually descriptive (avoids nav links)
+                if len(title_text) > 15:
+                    extracted_data["threat_intel"].append({
+                        "indicator": title_text,
+                        "reference_url": link
+                    })
         
         print(f"[+] Extracted {len(extracted_data['threat_intel'])} data points.")
-        save_intel_csv(extracted_data, "hackernews")
+        save_intel_csv(extracted_data, url.split('//')[-1].split('/')[0]) # Dynamic filename
         
         return extracted_data
 

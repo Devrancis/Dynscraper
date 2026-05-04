@@ -12,17 +12,20 @@ interface ThreatIntel {
 }
 
 export default function Dashboard() {
-  // --- Core State Management ---
+// --- Core State Management ---
   const [intel, setIntel] = useState<ThreatIntel[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
   const [apiOnline, setApiOnline] = useState<boolean | null>(null);
 
+  // --- NEW: Dynamic Target & Status Messaging ---
+  const [targetUrl, setTargetUrl] = useState("https://thehackernews.com");
+  const [statusMsg, setStatusMsg] = useState({ type: "", text: "" });
+
   // --- Search & Filter State ---
   const [searchTerm, setSearchTerm] = useState("");
   const [filterSource, setFilterSource] = useState("all");
 
-  // --- 1. System Initialization & Database Fetching ---
   const fetchIntel = async () => {
     try {
       const res = await fetch("http://localhost:8000/api/intel");
@@ -30,18 +33,15 @@ export default function Dashboard() {
       setIntel(data);
       setApiOnline(true);
     } catch (error) {
-      console.error("Failed to connect to API:", error);
+      console.error("API Error:", error);
       setApiOnline(false);
     } finally {
       setLoading(false);
     }
   };
 
-  // Run on page load
   useEffect(() => {
     fetchIntel();
-    
-    // Quick health check to ensure API connection
     const checkApi = async () => {
         try { await fetch("http://localhost:8000/"); setApiOnline(true); } 
         catch { setApiOnline(false); }
@@ -49,21 +49,33 @@ export default function Dashboard() {
     checkApi();
   }, []);
 
-  // --- 2. Interaction Handlers ---
+  // --- UPDATED: Dynamic Scrape Handler ---
   const triggerScrape = async () => {
+    if (!targetUrl.startsWith("http")) {
+      setStatusMsg({ type: "error", text: "Invalid Target: URL must begin with http:// or https://" });
+      return;
+    }
+
     setIsScraping(true);
+    setStatusMsg({ type: "info", text: `Establishing stealth connection to ${targetUrl}...` });
+    
     try {
-      const res = await fetch("http://localhost:8000/api/scrape");
+      // Pass the dynamic URL to the backend securely
+      const res = await fetch(`http://localhost:8000/api/scrape?url=${encodeURIComponent(targetUrl)}`);
       const result = await res.json();
       
       if (result.status === "success") {
-        await fetchIntel(); // Reload data immediately
-        console.log(`Success! ${result.new_threats_added_to_db} NEW entries added.`);
+        await fetchIntel(); 
+        if (result.total_scraped === 0) {
+           setStatusMsg({ type: "warning", text: "Connection successful, but no standard threat indicators (headlines) were found on this domain structure." });
+        } else {
+           setStatusMsg({ type: "success", text: `Success! Extracted ${result.total_scraped} items. Added ${result.new_threats_added_to_db} NEW entries.` });
+        }
       } else {
-        alert("Scraper pipeline encountered an error. Check logs.");
+        setStatusMsg({ type: "error", text: "Scrape failed. Target may be utilizing anti-bot protection." });
       }
     } catch (error) {
-      console.error("Scrape failed:", error);
+      setStatusMsg({ type: "error", text: "Critical Error: Could not reach the CyberFortress Backend Engine." });
     } finally {
       setIsScraping(false);
     }
@@ -118,31 +130,56 @@ export default function Dashboard() {
       <div className="max-w-7xl mx-auto px-6 py-10 space-y-10">
         
         {/* 2. Tactical Operations Center (Overview + Controls) */}
-        <div className="p-8 bg-slate-900 rounded-xl border border-slate-800 shadow-[0_0_60px_-15px_rgba(16,185,129,0.15)] flex flex-col md:flex-row gap-10 items-center justify-between">
-          <div className="flex-1 space-y-2 text-center md:text-left">
-            <h1 className="text-4xl font-bold text-white tracking-tight">Threat Intelligence</h1>
-            <p className="text-slate-500 max-w-lg">Advanced OSINT Scraper Monitoring System. Observe incoming threat indicators and execute automated data ingestion cycles below.</p>
-          </div>
-          
-          <button 
-            onClick={triggerScrape}
-            disabled={isScraping || apiOnline === false}
-            className={`px-10 py-5 rounded-lg text-lg font-bold group transition-all relative overflow-hidden flex items-center gap-3 shadow-xl ${
-              isScraping || apiOnline === false 
-                ? "bg-slate-800 text-slate-600 cursor-not-allowed" 
-                : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/50 hover:scale-105 active:scale-95"
-            }`}
-          >
-            {/* Pulsing glow background effect */}
-            {!isScraping && <div className="absolute inset-0 bg-emerald-400 opacity-20 group-hover:opacity-30 blur-xl"></div>}
+        <div className="p-8 bg-slate-900 rounded-xl border border-slate-800 shadow-[0_0_60px_-15px_rgba(16,185,129,0.15)] flex flex-col gap-6">
+          <div className="flex flex-col md:flex-row gap-10 items-end justify-between">
+            <div className="flex-1 space-y-2 w-full">
+              <h1 className="text-4xl font-bold text-white tracking-tight">Threat Intelligence</h1>
+              <p className="text-slate-500 mb-4">Input a target domain to extract OSINT indicators.</p>
+              
+              {/* NEW: Dynamic Input Field */}
+              <div className="relative flex items-center w-full max-w-2xl">
+                 <span className="absolute left-4 text-slate-500">󰖟</span>
+                 <input 
+                    type="text" 
+                    value={targetUrl}
+                    onChange={(e) => setTargetUrl(e.target.value)}
+                    placeholder="https://example-news-site.com"
+                    className="w-full bg-slate-950 border border-slate-700 text-emerald-400 pl-11 pr-4 py-4 rounded-lg focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all font-mono"
+                 />
+              </div>
+            </div>
             
-            <span className={isScraping ? "animate-spin" : ""}>
-                {isScraping ? "󰀕" : "󱕔"}
-            </span>
-            <span>
-                {isScraping ? "Scrape Executing..." : "Ignite Stealth Scrape"}
-            </span>
-          </button>
+            <button 
+              onClick={triggerScrape}
+              disabled={isScraping || apiOnline === false}
+              className={`px-10 py-4 rounded-lg text-lg font-bold group transition-all relative overflow-hidden flex items-center gap-3 shadow-xl whitespace-nowrap h-[58px] ${
+                isScraping || apiOnline === false 
+                  ? "bg-slate-800 text-slate-600 cursor-not-allowed" 
+                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/50 hover:scale-105 active:scale-95"
+              }`}
+            >
+              {!isScraping && <div className="absolute inset-0 bg-emerald-400 opacity-20 group-hover:opacity-30 blur-xl"></div>}
+              <span className={isScraping ? "animate-spin" : ""}>
+                  {isScraping ? "󰀕" : "󱕔"}
+              </span>
+              <span>{isScraping ? "Executing..." : "Ignite Stealth Scrape"}</span>
+            </button>
+          </div>
+
+          {/* NEW: Status Messaging Terminal */}
+          {statusMsg.text && (
+            <div className={`p-4 rounded border text-sm flex items-center gap-3 font-semibold ${
+              statusMsg.type === "error" ? "bg-red-950/50 border-red-900 text-red-400" :
+              statusMsg.type === "warning" ? "bg-amber-950/50 border-amber-900 text-amber-400" :
+              statusMsg.type === "success" ? "bg-emerald-950/50 border-emerald-900 text-emerald-400" :
+              "bg-slate-800 border-slate-700 text-slate-300 animate-pulse"
+            }`}>
+              <span>
+                {statusMsg.type === "error" ? "󰅙" : statusMsg.type === "warning" ? "󰀪" : statusMsg.type === "success" ? "󰄬" : "󰒋"}
+              </span>
+              {statusMsg.text}
+            </div>
+          )}
         </div>
 
         {/* 3. System Metrics Grid */}
