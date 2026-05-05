@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo } from "react";
 interface ThreatIntel {
   id: number;
   scan_target: string;
-  scraped_at: string; // From backend datetime ISO string
+  scraped_at: string; 
   indicator: string;
   reference_url: string;
 }
@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const fetchIntel = async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/intel");
+      const res = await fetch("https://xpectra-scrape.onrender.com/api/intel");
       const data = await res.json();
       setIntel(data);
       setApiOnline(true);
@@ -43,13 +43,12 @@ export default function Dashboard() {
   useEffect(() => {
     fetchIntel();
     const checkApi = async () => {
-        try { await fetch("http://localhost:8000/"); setApiOnline(true); } 
+        try { await fetch("https://xpectra-scrape.onrender.com/"); setApiOnline(true); } 
         catch { setApiOnline(false); }
     };
     checkApi();
   }, []);
 
-  // --- UPDATED: Dynamic Scrape Handler ---
   const triggerScrape = async () => {
     if (!targetUrl.startsWith("http")) {
       setStatusMsg({ type: "error", text: "Invalid Target: URL must begin with http:// or https://" });
@@ -60,8 +59,7 @@ export default function Dashboard() {
     setStatusMsg({ type: "info", text: `Establishing stealth connection to ${targetUrl}...` });
     
     try {
-      // Pass the dynamic URL to the backend securely
-      const res = await fetch(`http://localhost:8000/api/scrape?url=${encodeURIComponent(targetUrl)}`);
+      const res = await fetch(`https://xpectra-scrape.onrender.com/api/scrape?url=${encodeURIComponent(targetUrl)}`);
       const result = await res.json();
       
       if (result.status === "success") {
