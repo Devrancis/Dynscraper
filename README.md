@@ -26,7 +26,7 @@ Pulls structured data from target websites, extracts key information using a lig
 
 ## Getting started
 ```bash
-git clone https://github.com/Devrancis/scraper.git
+git clone https://github.com/Devrancis/xpectra-scrape.git
 cd scraper
 ```
 

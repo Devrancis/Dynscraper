@@ -111,9 +111,9 @@ export default function Dashboard() {
       <nav className="sticky top-0 z-50 bg-slate-950 border-b border-slate-800 shadow-2xl backdrop-blur-sm">
         <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="text-xl font-black text-emerald-500 tracking-tighter">DYNAMIC<span className="text-emerald-300">SCRAPER</span></div>
+            <div className="text-xl font-black text-emerald-500 tracking-tighter">XPECTRA<span className="text-emerald-300">SCRAPE</span></div>
             <div className="w-[1px] h-5 bg-slate-700"></div>
-            <div className="text-slate-500 font-medium">Scraper v1.0 [LIGHT]</div>
+            <div className="text-slate-500 font-medium">DynamicScraper</div>
           </div>
           
           <div className="flex items-center gap-2 px-3 py-1 bg-slate-900 rounded-full border border-slate-800">
