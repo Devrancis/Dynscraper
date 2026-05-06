@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const fetchIntel = async () => {
     try {
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/api/intel");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/intel`);
       const data = await res.json();
       setIntel(data);
       setApiOnline(true);
@@ -43,7 +43,7 @@ export default function Dashboard() {
   useEffect(() => {
     fetchIntel();
     const checkApi = async () => {
-        try { await fetch("${process.env.NEXT_PUBLIC_API_URL}"); setApiOnline(true); } 
+        try { await fetch(`${process.env.NEXT_PUBLIC_API_URL}`); setApiOnline(true); } 
         catch { setApiOnline(false); }
     };
     checkApi();
@@ -59,7 +59,7 @@ export default function Dashboard() {
     setStatusMsg({ type: "info", text: `Establishing stealth connection to ${targetUrl}...` });
     
     try {
-      const res = await fetch("${process.env.NEXT_PUBLIC_API_URL}/api/scrape?url=${encodeURIComponent(targetUrl)}");
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/scrape?url=${encodeURIComponent(targetUrl)}`);
       const result = await res.json();
       
       if (result.status === "success") {
@@ -73,7 +73,7 @@ export default function Dashboard() {
         setStatusMsg({ type: "error", text: "Scrape failed. Target may be utilizing anti-bot protection." });
       }
     } catch (error) {
-      setStatusMsg({ type: "error", text: "Critical Error: Could not reach the CyberFortress Backend Engine." });
+      setStatusMsg({ type: "error", text: "Critical Error: Could not reach the Xpectra Backend Engine." });
     } finally {
       setIsScraping(false);
     }
