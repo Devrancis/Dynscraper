@@ -29,16 +29,28 @@ export default function Dashboard() {
   const fetchIntel = async () => {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/intel`);
+  
+      if (!res.ok) {
+        throw new Error(`API failed with status: ${res.status}`);
+      }
+
       const data = await res.json();
-      setIntel(data);
-      setApiOnline(true);
-    } catch (error) {
-      console.error("API Error:", error);
-      setApiOnline(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  
+      if (Array.isArray(data)) {
+        setIntel(data);
+      } else {
+        console.warn("API returned non-array data. Defaulting to empty.");
+        setIntel([]); 
+      }
+  
+    setApiOnline(true);
+  } catch (error) {
+    console.error("API Error:", error);
+    setIntel([]);
+    setApiOnline(false);
+  } finally {
+    setLoading(false);
+  }
 
   useEffect(() => {
     fetchIntel();
