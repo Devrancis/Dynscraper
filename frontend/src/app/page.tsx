@@ -12,7 +12,6 @@ interface ThreatIntel {
 }
 
 export default function Dashboard() {
-// --- Core State Management ---
   const [intel, setIntel] = useState<ThreatIntel[]>([]);
   const [loading, setLoading] = useState(true);
   const [isScraping, setIsScraping] = useState(false);
@@ -51,6 +50,7 @@ export default function Dashboard() {
   } finally {
     setLoading(false);
   }
+};
 
   useEffect(() => {
     fetchIntel();
