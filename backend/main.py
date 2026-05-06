@@ -9,8 +9,9 @@ async def lifespan(app: FastAPI):
     print("[*] Verifying PostgreSQL database connection...")
     init_db()
     yield 
+    print("[*] Shutting down Xpectra Engine...")
 
-app = FastAPI(title="Dynamic Web Scraper API", lifespan=lifespan)
+app = FastAPI(title="Xpectra Engine API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,16 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# This creates your Postgres table automatically when the server starts
-@app.on_event("startup")
-def on_startup():
-    print("[*] Verifying PostgreSQL database connection...")
-    init_db()
-
 @app.get("/")
 def read_root():
-    return {"status": "Lightweight API is online and ready."}
+    return {"status": "Xpectra Engine is Online. Access Restricted."}
 
+@app.get("/api/health")
+def health_check():
+    """Endpoint exclusively for keeping the Render server awake."""
+    return {"status": "healthy", "message": "Engine heartbeat detected."}
+
+# 4. Core Operation Endpoints
 @app.get("/api/scrape")
 async def manual_scrape(url: str = "https://thehackernews.com/"):
     """Triggers the scraper and saves new data to the database."""
@@ -38,7 +39,6 @@ async def manual_scrape(url: str = "https://thehackernews.com/"):
     if not data:
         return {"status": "error", "message": "Scrape failed. Check terminal logs."}
     
-    # Save to Postgres (and get the count of newly inserted rows)
     inserted_count = save_to_neon(data)
         
     return {
